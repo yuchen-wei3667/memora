@@ -4,6 +4,7 @@
   "description": "A local-first autonomous coding agent that learns your codebase and builds its own tools",
   "main": "index.js",
   "scripts": {
+    "memora": "tsx src/cli/index.ts",
     "test": "vitest run",
     "build": "tsc -p tsconfig.json",
     "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\"",
@@ -11,6 +12,9 @@
     "format:check": "prettier --check .",
     "migrate": "tsx src/storage/migrations/run-migrations.ts",
     "ci": "npm run build && npm test"
+  },
+  "bin": {
+    "memora": "dist/cli/index.js"
   },
   "repository": {
     "type": "git",
@@ -34,5 +38,9 @@
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",
     "vitest": "^4.1.4"
+  },
+  "dependencies": {
+    "commander": "^14.0.3",
+    "zod": "^4.3.6"
   }
 }
