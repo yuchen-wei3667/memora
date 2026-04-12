@@ -1,0 +1,1 @@
+export const explainCommand = "explain";

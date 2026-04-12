@@ -1,0 +1,38 @@
+{
+  "name": "memora",
+  "version": "1.0.0",
+  "description": "A local-first autonomous coding agent that learns your codebase and builds its own tools",
+  "main": "index.js",
+  "scripts": {
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "migrate": "tsx src/storage/migrations/run-migrations.ts",
+    "ci": "npm run build && npm test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yuchen-wei3667/memora.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/yuchen-wei3667/memora/issues"
+  },
+  "homepage": "https://github.com/yuchen-wei3667/memora#readme",
+  "private": true,
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@typescript-eslint/eslint-plugin": "^8.58.1",
+    "@typescript-eslint/parser": "^8.58.1",
+    "eslint": "^10.2.0",
+    "prettier": "^3.8.2",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.4"
+  }
+}
