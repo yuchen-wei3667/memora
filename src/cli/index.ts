@@ -3,6 +3,7 @@ import { Command } from "commander";
 import { pathToFileURL } from "node:url";
 
 import { createAuthCommand } from "./commands/auth.js";
+import { createInitCommand } from "./commands/init.js";
 
 export const createCli = (): Command => {
   const program = new Command();
@@ -11,6 +12,7 @@ export const createCli = (): Command => {
     .name("memora")
     .description("Local-first autonomous coding agent")
     .version("0.0.0")
+    .addCommand(createInitCommand())
     .addCommand(createAuthCommand());
 
   return program;
@@ -22,7 +24,8 @@ export const runCli = async (argv = process.argv): Promise<void> => {
 };
 
 const isMain =
-  typeof process.argv[1] === "string" && pathToFileURL(process.argv[1]).href === import.meta.url;
+  typeof process.argv[1] === "string" &&
+  pathToFileURL(process.argv[1]).href === import.meta.url;
 
 if (isMain) {
   runCli().catch((error: unknown) => {
