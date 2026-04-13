@@ -31,6 +31,8 @@ export interface RunTaskOptions {
   taskText: string;
   memoraHome: string;
   cwd?: string;
+  provider?: "openai-codex" | "github-copilot";
+  model?: string;
   mode?: "run" | "fix";
   maxAttempts?: number;
   forceSkillId?:
@@ -73,18 +75,32 @@ export const runTask = async (
         failures: []
       };
 
+  const commandSegments = ["memora", options.mode ?? "run"];
+  if (options.provider) {
+    commandSegments.push("--provider", options.provider);
+  }
+  if (options.model) {
+    commandSegments.push("--model", options.model);
+  }
+  commandSegments.push(JSON.stringify(options.taskText));
+  const command = commandSegments.join(" ");
+
   const traceWriter = await createTraceWriter({
     memoraHome: options.memoraHome,
     repoId: context.repoId,
     repoRoot: context.repoRoot,
-    command: `memora ${options.mode ?? "run"} ${JSON.stringify(options.taskText)}`,
+    command,
     taskText: options.taskText
   });
 
   await traceWriter.appendEvent({
     state: "INIT",
     eventType: "run.started",
-    payload: { taskText: options.taskText }
+    payload: {
+      taskText: options.taskText,
+      provider: options.provider,
+      model: options.model
+    }
   });
   await traceWriter.appendEvent({
     state: "CONTEXT_READY",
@@ -334,7 +350,7 @@ export const runTask = async (
     });
     insertRun(db, context.repoId, {
       runId: traceWriter.getTrace().runId,
-      command: `memora ${options.mode ?? "run"} ${JSON.stringify(options.taskText)}`,
+      command,
       taskText: options.taskText,
       status: success ? "success" : "failed",
       attemptCount: attempt,

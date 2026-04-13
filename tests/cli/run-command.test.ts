@@ -6,6 +6,11 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import {
+  resolveRunInput,
+  type RunPrompter
+} from "../../src/cli/commands/run.js";
+import { DEFAULT_CONFIG } from "../../src/config/schema.js";
 import { readRunTrace } from "../../src/trace/trace-writer.js";
 
 const workspaceRoot = path.resolve(
@@ -122,6 +127,89 @@ describe("run CLI command", () => {
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("Verification failed.");
+  });
+
+  it("supports provider and model overrides for non-interactive runs", async () => {
+    const repoRoot = await createRunnableRepo("world");
+    const memoraHome = await mkdtemp(
+      path.join(os.tmpdir(), "memora-run-home-")
+    );
+
+    const result = runMemoraCli(
+      [
+        "run",
+        'append "world" to notes.txt',
+        "--provider",
+        "openai-codex",
+        "--model",
+        "gpt-5-codex",
+        "--cwd",
+        repoRoot,
+        "--memora-home",
+        memoraHome
+      ],
+      workspaceRoot
+    );
+
+    expect(result.status).toBe(0);
+
+    const repoIds = await readdir(path.join(memoraHome, "repos"));
+    const traceDir = path.join(memoraHome, "repos", repoIds[0], "runs");
+    const traceFiles = await readdir(traceDir);
+    const trace = await readRunTrace(path.join(traceDir, traceFiles[0]));
+    const runStartedEvent = trace.events.find(
+      (event) => event.eventType === "run.started"
+    );
+
+    expect(runStartedEvent?.payload.provider).toBe("openai-codex");
+    expect(runStartedEvent?.payload.model).toBe("gpt-5-codex");
+  });
+
+  it("fails clearly when task text is omitted in non-interactive mode", async () => {
+    const repoRoot = await createRunnableRepo("world");
+    const memoraHome = await mkdtemp(
+      path.join(os.tmpdir(), "memora-run-home-")
+    );
+
+    const result = runMemoraCli(
+      ["run", "--cwd", repoRoot, "--memora-home", memoraHome],
+      workspaceRoot
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "Task text is required when stdin is not interactive"
+    );
+  });
+
+  it("prompts for provider and model before task text", async () => {
+    const prompts: string[] = [];
+    const answers = [
+      "github-copilot",
+      "gpt-5-codex",
+      'append "world" to notes.txt'
+    ];
+    const prompter: RunPrompter = {
+      ask: async (question: string) => {
+        prompts.push(question);
+        return answers.shift() ?? "";
+      },
+      close: () => undefined
+    };
+
+    const resolved = await resolveRunInput(undefined, {}, DEFAULT_CONFIG, {
+      isInteractive: true,
+      prompter
+    });
+
+    expect(prompts).toEqual([
+      "Provider [openai-codex] (openai-codex, github-copilot): ",
+      "Model [gpt-5-codex] (gpt-5-codex): ",
+      "Task: "
+    ]);
+    expect(resolved.provider).toBe("github-copilot");
+    expect(resolved.model).toBe("gpt-5-codex");
+    expect(resolved.taskText).toBe('append "world" to notes.txt');
   });
 
   it("includes retrieved memory context in trace on subsequent runs", async () => {

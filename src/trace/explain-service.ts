@@ -59,6 +59,8 @@ export const readTraceSummary = async (
 
 export interface ExplainOutput {
   objective: string;
+  provider: string;
+  model: string;
   selectedSkill: string;
   memories: string[];
   tools: string[];
@@ -67,6 +69,9 @@ export interface ExplainOutput {
 }
 
 export const buildExplainOutput = (trace: RunTrace): ExplainOutput => {
+  const runStartedEvent = trace.events.find(
+    (event) => event.eventType === "run.started"
+  );
   const selectedSkillEvent = trace.events.find(
     (event) =>
       event.eventType === "note.logged" && "selectedSkill" in event.payload
@@ -110,6 +115,8 @@ export const buildExplainOutput = (trace: RunTrace): ExplainOutput => {
 
   return {
     objective: trace.taskText ?? trace.command,
+    provider: String(runStartedEvent?.payload.provider ?? "unknown"),
+    model: String(runStartedEvent?.payload.model ?? "unknown"),
     selectedSkill,
     memories: memoryContext.map((item) => item.content),
     tools: [],
@@ -142,6 +149,8 @@ export const resolveExplainTrace = async (input: {
 export const formatExplainOutput = (explained: ExplainOutput): string => {
   const lines = [
     `objective: ${explained.objective}`,
+    `provider: ${explained.provider}`,
+    `model: ${explained.model}`,
     `selected_skill: ${explained.selectedSkill}`,
     `memory_hits: ${explained.memories.length}`,
     `tools_used: ${explained.tools.length}`,

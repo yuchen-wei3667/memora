@@ -8,10 +8,28 @@ export const providerNameSchema = z.enum(providerNames);
 
 export type ProviderName = z.infer<typeof providerNameSchema>;
 
+const modelListSchema = z.array(z.string().min(1)).min(1);
+
+const ensureDefaultModelIncluded = <
+  T extends { model: string; models?: string[] }
+>(
+  value: T,
+  context: z.RefinementCtx
+): void => {
+  if (value.models && !value.models.includes(value.model)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Default model must be included in models.",
+      path: ["model"]
+    });
+  }
+};
+
 export const openAICodexProviderSchema = z
   .object({
     apiKeyEnv: z.string().min(1),
     model: z.string().min(1),
+    models: modelListSchema.optional(),
     deviceCode: z
       .object({
         flow: z.enum(["oauth-device", "openai-device"]).optional(),
@@ -25,12 +43,14 @@ export const openAICodexProviderSchema = z
       })
       .strict()
   })
+  .superRefine(ensureDefaultModelIncluded)
   .strict();
 
 export const githubCopilotProviderSchema = z
   .object({
     authMode: z.literal("device-flow"),
     model: z.string().min(1),
+    models: modelListSchema.optional(),
     deviceCode: z
       .object({
         flow: z.enum(["oauth-device", "openai-device"]).optional(),
@@ -44,6 +64,7 @@ export const githubCopilotProviderSchema = z
       })
       .strict()
   })
+  .superRefine(ensureDefaultModelIncluded)
   .strict();
 
 export const memoraConfigSchema = z
@@ -84,10 +105,12 @@ export const DEFAULT_CONFIG: MemoraConfig = {
     "openai-codex": {
       apiKeyEnv: "OPENAI_API_KEY",
       model: "gpt-5-codex",
+      models: ["gpt-5-codex"],
       deviceCode: {
         flow: "openai-device",
         clientId: "app_EMoamEEZ73f0CkXaXp7hrann",
-        deviceEndpoint: "https://auth.openai.com/api/accounts/deviceauth/usercode",
+        deviceEndpoint:
+          "https://auth.openai.com/api/accounts/deviceauth/usercode",
         pollEndpoint: "https://auth.openai.com/api/accounts/deviceauth/token",
         tokenEndpoint: "https://auth.openai.com/oauth/token",
         scope: "openid profile offline_access",
@@ -97,6 +120,7 @@ export const DEFAULT_CONFIG: MemoraConfig = {
     "github-copilot": {
       authMode: "device-flow",
       model: "gpt-5-codex",
+      models: ["gpt-5-codex"],
       deviceCode: {
         flow: "oauth-device",
         clientId: "178c6fc778ccc68e1d6a",

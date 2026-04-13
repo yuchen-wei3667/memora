@@ -18,6 +18,19 @@ describe("explain service", () => {
           timestamp: "2026-01-01T00:00:00.000Z",
           sequence: 0,
           attempt: 1,
+          state: "INIT",
+          eventType: "run.started",
+          payload: {
+            provider: "openai-codex",
+            model: "gpt-5-codex",
+            taskText: "run npm test"
+          }
+        },
+        {
+          runId: "run-1",
+          timestamp: "2026-01-01T00:00:00.000Z",
+          sequence: 1,
+          attempt: 1,
           state: "CONTEXT_READY",
           eventType: "state.changed",
           payload: {
@@ -27,7 +40,7 @@ describe("explain service", () => {
         {
           runId: "run-1",
           timestamp: "2026-01-01T00:00:00.000Z",
-          sequence: 1,
+          sequence: 2,
           attempt: 1,
           state: "CONTEXT_READY",
           eventType: "note.logged",
@@ -38,7 +51,7 @@ describe("explain service", () => {
         {
           runId: "run-1",
           timestamp: "2026-01-01T00:00:00.000Z",
-          sequence: 2,
+          sequence: 3,
           attempt: 1,
           state: "RETRY_DECISION",
           eventType: "retry.decided",
@@ -50,7 +63,7 @@ describe("explain service", () => {
         {
           runId: "run-1",
           timestamp: "2026-01-01T00:00:00.000Z",
-          sequence: 3,
+          sequence: 4,
           attempt: 1,
           state: "VERIFYING",
           eventType: "verification.completed",
@@ -63,6 +76,8 @@ describe("explain service", () => {
     });
 
     expect(explained.objective).toBe("run npm test");
+    expect(explained.provider).toBe("openai-codex");
+    expect(explained.model).toBe("gpt-5-codex");
     expect(explained.selectedSkill).toBe("fix_failing_tests");
     expect(explained.memories).toEqual(["Use npm test"]);
     expect(explained.retries.length).toBe(1);
