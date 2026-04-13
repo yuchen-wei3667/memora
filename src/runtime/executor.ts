@@ -1,5 +1,6 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { spawn } from "node:child_process";
+import path from "node:path";
 
 import {
   runVerification,
@@ -58,11 +59,22 @@ export const executePlannedStep = async (
   }
 
   if (step.type === "edit") {
-    const current = await readFile(step.filePath!, "utf8");
+    let current = "";
+    try {
+      current = await readFile(step.filePath!, "utf8");
+    } catch (err: any) {
+      // If the target file doesn't exist, treat it as empty and create parent dirs
+      if (err?.code === "ENOENT") {
+        current = "";
+        await mkdir(path.dirname(step.filePath!), { recursive: true });
+      } else {
+        throw err;
+      }
+    }
 
     let next = current;
     if (step.operation === "append") {
-      const suffix = current.endsWith("\n") ? "" : "\n";
+      const suffix = current.endsWith("\n") && current.length > 0 ? "" : "\n";
       next = `${current}${suffix}${step.appendText ?? ""}\n`;
     } else if (step.operation === "replace") {
       next = current.replace(step.replaceFrom ?? "", step.replaceTo ?? "");
