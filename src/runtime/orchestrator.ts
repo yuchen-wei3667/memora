@@ -46,7 +46,10 @@ export const runTask = async (
   await traceWriter.appendEvent({
     state: "CONTEXT_READY",
     eventType: "state.changed",
-    payload: { verificationCommands: context.verificationCommands }
+    payload: {
+      verificationCommands: context.verificationCommands,
+      memoryContext: context.memoryContext
+    }
   });
 
   const plan = createExecutionPlan(context);

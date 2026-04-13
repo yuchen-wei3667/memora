@@ -123,4 +123,61 @@ describe("run CLI command", () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("Verification failed.");
   });
+
+  it("includes retrieved memory context in trace on subsequent runs", async () => {
+    const repoRoot = await createRunnableRepo("world");
+    const memoraHome = await mkdtemp(
+      path.join(os.tmpdir(), "memora-run-home-")
+    );
+
+    const addMemory = runMemoraCli(
+      [
+        "memory",
+        "add",
+        "--category",
+        "workflow",
+        "--content",
+        "Prefer running npm test before commits",
+        "--cwd",
+        repoRoot,
+        "--memora-home",
+        memoraHome
+      ],
+      workspaceRoot
+    );
+    expect(addMemory.status).toBe(0);
+
+    const runResult = runMemoraCli(
+      [
+        "run",
+        'append "world" to notes.txt',
+        "--cwd",
+        repoRoot,
+        "--memora-home",
+        memoraHome
+      ],
+      workspaceRoot
+    );
+    expect(runResult.status).toBe(0);
+
+    const repoIds = await readdir(path.join(memoraHome, "repos"));
+    const traceDir = path.join(memoraHome, "repos", repoIds[0], "runs");
+    const traceFiles = await readdir(traceDir);
+    const latestTraceFile = traceFiles.sort().at(-1)!;
+    const trace = await readRunTrace(path.join(traceDir, latestTraceFile));
+
+    const contextEvent = trace.events.find(
+      (event) =>
+        event.eventType === "state.changed" && event.state === "CONTEXT_READY"
+    );
+    expect(contextEvent).toBeDefined();
+    const memoryContext =
+      (contextEvent?.payload.memoryContext as
+        | Array<{ content: string }>
+        | undefined) ?? [];
+    expect(memoryContext.length).toBeGreaterThan(0);
+    expect(
+      memoryContext.some((entry) => entry.content.includes("running npm test"))
+    ).toBe(true);
+  });
 });

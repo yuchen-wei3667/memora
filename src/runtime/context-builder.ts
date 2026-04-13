@@ -2,6 +2,8 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { analyzeRepo } from "../repo/analyzer.js";
+import { MemoryService } from "../memory/memory-service.js";
+import { retrieveMemories } from "../memory/memory-retriever.js";
 import { resolveRepo } from "../repo/resolver.js";
 
 export interface RunTaskContext {
@@ -9,6 +11,7 @@ export interface RunTaskContext {
   repoRoot: string;
   taskText: string;
   verificationCommands: string[];
+  memoryContext: Array<{ memoryId: string; content: string; score: number }>;
   knownFiles: string[];
 }
 
@@ -55,11 +58,27 @@ export const buildRunContext = async (input: {
   );
   const analysis = await analyzeRepo(resolved.repoRoot);
 
+  const memoryService = new MemoryService({
+    memoraHome: input.memoraHome,
+    repoId: resolved.repoId,
+    repoRoot: resolved.repoRoot
+  });
+  const retrieved = await retrieveMemories({
+    service: memoryService,
+    query: input.taskText,
+    limit: 8
+  });
+
   return {
     repoId: resolved.repoId,
     repoRoot: resolved.repoRoot,
     taskText: input.taskText,
     verificationCommands: fromMetadata ?? analysis.verificationCommands,
+    memoryContext: retrieved.map((entry) => ({
+      memoryId: entry.memory.memoryId,
+      content: entry.memory.content,
+      score: entry.score
+    })),
     knownFiles: []
   };
 };
