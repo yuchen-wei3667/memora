@@ -596,6 +596,88 @@ export interface RepoScopedDb {
   deleteMemoryItem: (memoryId: string) => boolean;
 }
 
+export type ToolApprovalState = "auto" | "pending" | "approved" | "blocked";
+
+export interface ToolRecord {
+  toolId: string;
+  repoId: string;
+  name: string;
+  description: string | null;
+  path: string;
+  language: string | null;
+  approvalState: ToolApprovalState;
+  successCount: number;
+  failureCount: number;
+  createdByRunId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateToolInput {
+  toolId: string;
+  name: string;
+  description?: string | null;
+  path: string;
+  language?: string | null;
+  approvalState: ToolApprovalState;
+  createdByRunId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdateToolStatsInput {
+  successCount?: number;
+  failureCount?: number;
+  approvalState?: ToolApprovalState;
+  updatedAt: string;
+}
+
+export interface FailurePatternRecord {
+  patternId: string;
+  repoId: string;
+  signature: string;
+  contextJson: string | null;
+  occurrences: number;
+  lastSeenAt: string;
+}
+
+const asToolApprovalState = (value: unknown): ToolApprovalState => {
+  if (
+    value === "auto" ||
+    value === "pending" ||
+    value === "approved" ||
+    value === "blocked"
+  ) {
+    return value;
+  }
+
+  throw new Error(`Invalid tool approval state: ${String(value)}`);
+};
+
+const mapTool = (row: SqliteRow): ToolRecord => ({
+  toolId: String(row.tool_id),
+  repoId: String(row.repo_id),
+  name: String(row.name),
+  description: asNullableString(row.description),
+  path: String(row.path),
+  language: asNullableString(row.language),
+  approvalState: asToolApprovalState(row.approval_state),
+  successCount: Number(row.success_count),
+  failureCount: Number(row.failure_count),
+  createdByRunId: asNullableString(row.created_by_run_id),
+  createdAt: String(row.created_at),
+  updatedAt: String(row.updated_at)
+});
+
+const mapFailurePattern = (row: SqliteRow): FailurePatternRecord => ({
+  patternId: String(row.pattern_id),
+  repoId: String(row.repo_id),
+  signature: String(row.signature),
+  contextJson: asNullableString(row.context_json),
+  occurrences: Number(row.occurrences),
+  lastSeenAt: String(row.last_seen_at)
+});
+
 export const createRepoScopedDb = (
   db: DatabaseSync,
   repoId: string
@@ -611,3 +693,303 @@ export const createRepoScopedDb = (
     updateMemoryItem(db, repoId, memoryId, update),
   deleteMemoryItem: (memoryId) => deleteMemoryItem(db, repoId, memoryId)
 });
+
+export const insertTool = (
+  db: DatabaseSync,
+  repoId: string,
+  input: CreateToolInput
+): ToolRecord => {
+  prepare(
+    db,
+    `
+      INSERT INTO tools (
+        tool_id,
+        repo_id,
+        name,
+        description,
+        path,
+        language,
+        approval_state,
+        created_by_run_id,
+        created_at,
+        updated_at
+      ) VALUES (
+        :tool_id,
+        :repo_id,
+        :name,
+        :description,
+        :path,
+        :language,
+        :approval_state,
+        :created_by_run_id,
+        :created_at,
+        :updated_at
+      )
+      ON CONFLICT(tool_id) DO UPDATE SET
+        name = excluded.name,
+        description = excluded.description,
+        path = excluded.path,
+        language = excluded.language,
+        approval_state = excluded.approval_state,
+        created_by_run_id = excluded.created_by_run_id,
+        updated_at = excluded.updated_at
+    `
+  ).run({
+    tool_id: input.toolId,
+    repo_id: repoId,
+    name: input.name,
+    description: input.description ?? null,
+    path: input.path,
+    language: input.language ?? null,
+    approval_state: input.approvalState,
+    created_by_run_id: input.createdByRunId ?? null,
+    created_at: input.createdAt,
+    updated_at: input.updatedAt
+  });
+
+  const saved = getToolById(db, repoId, input.toolId);
+  if (!saved) {
+    throw new Error(`Failed to persist tool ${input.toolId}`);
+  }
+  return saved;
+};
+
+export const getToolById = (
+  db: DatabaseSync,
+  repoId: string,
+  toolId: string
+): ToolRecord | null => {
+  const row = prepare(
+    db,
+    `
+      SELECT
+        tool_id,
+        repo_id,
+        name,
+        description,
+        path,
+        language,
+        approval_state,
+        success_count,
+        failure_count,
+        created_by_run_id,
+        created_at,
+        updated_at
+      FROM tools
+      WHERE repo_id = :repo_id AND tool_id = :tool_id
+    `
+  ).get({ repo_id: repoId, tool_id: toolId }) as SqliteRow | undefined;
+
+  return row ? mapTool(row) : null;
+};
+
+export const listToolsByRepoId = (
+  db: DatabaseSync,
+  repoId: string
+): ToolRecord[] => {
+  const rows = prepare(
+    db,
+    `
+      SELECT
+        tool_id,
+        repo_id,
+        name,
+        description,
+        path,
+        language,
+        approval_state,
+        success_count,
+        failure_count,
+        created_by_run_id,
+        created_at,
+        updated_at
+      FROM tools
+      WHERE repo_id = :repo_id
+      ORDER BY updated_at DESC, tool_id DESC
+    `
+  ).all({ repo_id: repoId }) as SqliteRow[];
+
+  return rows.map(mapTool);
+};
+
+export const updateToolStats = (
+  db: DatabaseSync,
+  repoId: string,
+  toolId: string,
+  input: UpdateToolStatsInput
+): ToolRecord => {
+  const existing = getToolById(db, repoId, toolId);
+  if (!existing) {
+    throw new Error(`Tool ${toolId} not found for repo ${repoId}`);
+  }
+
+  prepare(
+    db,
+    `
+      UPDATE tools
+      SET
+        success_count = :success_count,
+        failure_count = :failure_count,
+        approval_state = :approval_state,
+        updated_at = :updated_at
+      WHERE repo_id = :repo_id AND tool_id = :tool_id
+    `
+  ).run({
+    repo_id: repoId,
+    tool_id: toolId,
+    success_count: input.successCount ?? existing.successCount,
+    failure_count: input.failureCount ?? existing.failureCount,
+    approval_state: input.approvalState ?? existing.approvalState,
+    updated_at: input.updatedAt
+  });
+
+  const saved = getToolById(db, repoId, toolId);
+  if (!saved) {
+    throw new Error(`Failed to update tool ${toolId}`);
+  }
+  return saved;
+};
+
+export const listFailurePatternsByRepoId = (
+  db: DatabaseSync,
+  repoId: string
+): FailurePatternRecord[] => {
+  const rows = prepare(
+    db,
+    `
+      SELECT pattern_id, repo_id, signature, context_json, occurrences, last_seen_at
+      FROM failure_patterns
+      WHERE repo_id = :repo_id
+      ORDER BY last_seen_at DESC
+    `
+  ).all({ repo_id: repoId }) as SqliteRow[];
+
+  return rows.map(mapFailurePattern);
+};
+
+export const upsertFailurePattern = (
+  db: DatabaseSync,
+  repoId: string,
+  input: {
+    patternId: string;
+    signature: string;
+    contextJson?: string | null;
+    lastSeenAt: string;
+  }
+): FailurePatternRecord => {
+  prepare(
+    db,
+    `
+      INSERT INTO failure_patterns (pattern_id, repo_id, signature, context_json, occurrences, last_seen_at)
+      VALUES (:pattern_id, :repo_id, :signature, :context_json, 1, :last_seen_at)
+      ON CONFLICT(repo_id, signature) DO UPDATE SET
+        context_json = excluded.context_json,
+        occurrences = failure_patterns.occurrences + 1,
+        last_seen_at = excluded.last_seen_at
+    `
+  ).run({
+    pattern_id: input.patternId,
+    repo_id: repoId,
+    signature: input.signature,
+    context_json: input.contextJson ?? null,
+    last_seen_at: input.lastSeenAt
+  });
+
+  const row = prepare(
+    db,
+    `
+      SELECT pattern_id, repo_id, signature, context_json, occurrences, last_seen_at
+      FROM failure_patterns
+      WHERE repo_id = :repo_id AND signature = :signature
+    `
+  ).get({ repo_id: repoId, signature: input.signature }) as
+    | SqliteRow
+    | undefined;
+
+  if (!row) {
+    throw new Error(`Failed to persist failure pattern ${input.signature}`);
+  }
+
+  return mapFailurePattern(row);
+};
+
+export const upsertSkillMetric = (
+  db: DatabaseSync,
+  input: {
+    skillId: string;
+    name: string;
+    version: string;
+    successDelta: number;
+    failureDelta: number;
+    updatedAt: string;
+  }
+): void => {
+  prepare(
+    db,
+    `
+      INSERT INTO skills (
+        skill_id,
+        repo_id,
+        name,
+        version,
+        definition_json,
+        enabled,
+        success_count,
+        failure_count,
+        created_at,
+        updated_at
+      ) VALUES (
+        :skill_id,
+        NULL,
+        :name,
+        :version,
+        :definition_json,
+        1,
+        :success_delta,
+        :failure_delta,
+        :updated_at,
+        :updated_at
+      )
+      ON CONFLICT(skill_id) DO UPDATE SET
+        success_count = skills.success_count + :success_delta,
+        failure_count = skills.failure_count + :failure_delta,
+        updated_at = :updated_at
+    `
+  ).run({
+    skill_id: input.skillId,
+    name: input.name,
+    version: input.version,
+    definition_json: "{}",
+    success_delta: input.successDelta,
+    failure_delta: input.failureDelta,
+    updated_at: input.updatedAt
+  });
+};
+
+export const getLatestRunByRepoId = (
+  db: DatabaseSync,
+  repoId: string
+): RunRecord | null => {
+  const row = prepare(
+    db,
+    `
+      SELECT
+        run_id,
+        repo_id,
+        command,
+        task_text,
+        status,
+        attempt_count,
+        selected_skill,
+        summary,
+        started_at,
+        ended_at
+      FROM runs
+      WHERE repo_id = :repo_id
+      ORDER BY started_at DESC, run_id DESC
+      LIMIT 1
+    `
+  ).get({ repo_id: repoId }) as SqliteRow | undefined;
+
+  return row ? mapRun(row) : null;
+};

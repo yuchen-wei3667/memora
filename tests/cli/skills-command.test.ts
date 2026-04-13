@@ -25,7 +25,9 @@ describe("skills CLI command", () => {
         tsxCliPath,
         path.join(workspaceRoot, "src", "cli", "index.ts"),
         "skills",
-        "list"
+        "list",
+        "--memora-home",
+        path.join(workspaceRoot, ".tmp-memora-home-skills-test")
       ],
       {
         cwd: workspaceRoot,

@@ -3,10 +3,14 @@ import { Command } from "commander";
 import { pathToFileURL } from "node:url";
 
 import { createAuthCommand } from "./commands/auth.js";
+import { createExplainCommand } from "./commands/explain.js";
+import { createFixCommand } from "./commands/fix.js";
 import { createInitCommand } from "./commands/init.js";
 import { createMemoryCommand } from "./commands/memory.js";
 import { createRunCommand } from "./commands/run.js";
 import { createSkillsCommand } from "./commands/skills.js";
+import { createTestCommand } from "./commands/test.js";
+import { createToolsCommand } from "./commands/tools.js";
 
 export const createCli = (): Command => {
   const program = new Command();
@@ -17,8 +21,12 @@ export const createCli = (): Command => {
     .version("0.0.0")
     .addCommand(createInitCommand())
     .addCommand(createRunCommand())
+    .addCommand(createFixCommand())
+    .addCommand(createTestCommand())
     .addCommand(createMemoryCommand())
+    .addCommand(createToolsCommand())
     .addCommand(createSkillsCommand())
+    .addCommand(createExplainCommand())
     .addCommand(createAuthCommand());
 
   return program;
