@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 
 import { createAuthCommand } from "./commands/auth.js";
 import { createInitCommand } from "./commands/init.js";
+import { createRunCommand } from "./commands/run.js";
 
 export const createCli = (): Command => {
   const program = new Command();
@@ -13,6 +14,7 @@ export const createCli = (): Command => {
     .description("Local-first autonomous coding agent")
     .version("0.0.0")
     .addCommand(createInitCommand())
+    .addCommand(createRunCommand())
     .addCommand(createAuthCommand());
 
   return program;
