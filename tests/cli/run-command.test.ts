@@ -179,5 +179,15 @@ describe("run CLI command", () => {
     expect(
       memoryContext.some((entry) => entry.content.includes("running npm test"))
     ).toBe(true);
+
+    const skillEvent = trace.events.find(
+      (event) =>
+        event.eventType === "note.logged" && event.state === "CONTEXT_READY"
+    );
+    expect(skillEvent).toBeDefined();
+    expect(
+      (skillEvent?.payload.selectedSkill as { skillId: string } | undefined)
+        ?.skillId
+    ).toBeDefined();
   });
 });

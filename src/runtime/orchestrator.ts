@@ -4,6 +4,8 @@ import {
   upsertRepo,
   insertRun
 } from "../storage/db.js";
+import { createSkillRunMetadata } from "../skills/runner.js";
+import { selectSkill } from "../skills/selector.js";
 import { createTraceWriter } from "../trace/trace-writer.js";
 
 import { buildRunContext } from "./context-builder.js";
@@ -49,6 +51,24 @@ export const runTask = async (
     payload: {
       verificationCommands: context.verificationCommands,
       memoryContext: context.memoryContext
+    }
+  });
+
+  const selectedSkill = selectSkill({
+    taskText: options.taskText,
+    repoSignals: [
+      ...context.verificationCommands,
+      ...context.memoryContext.map((item) => item.content)
+    ]
+  });
+  await traceWriter.appendEvent({
+    state: "CONTEXT_READY",
+    eventType: "note.logged",
+    payload: {
+      selectedSkill: createSkillRunMetadata(selectedSkill.skill),
+      score: selectedSkill.score,
+      fallbackUsed: selectedSkill.fallbackUsed,
+      reason: selectedSkill.reason
     }
   });
 
@@ -127,6 +147,7 @@ export const runTask = async (
       taskText: options.taskText,
       status: success ? "success" : "failed",
       attemptCount: 1,
+      selectedSkill: selectedSkill.skill.id,
       summary,
       startedAt: traceWriter.getTrace().startedAt,
       endedAt: traceWriter.getTrace().completedAt ?? new Date().toISOString()

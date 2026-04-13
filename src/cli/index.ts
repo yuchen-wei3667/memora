@@ -6,6 +6,7 @@ import { createAuthCommand } from "./commands/auth.js";
 import { createInitCommand } from "./commands/init.js";
 import { createMemoryCommand } from "./commands/memory.js";
 import { createRunCommand } from "./commands/run.js";
+import { createSkillsCommand } from "./commands/skills.js";
 
 export const createCli = (): Command => {
   const program = new Command();
@@ -17,6 +18,7 @@ export const createCli = (): Command => {
     .addCommand(createInitCommand())
     .addCommand(createRunCommand())
     .addCommand(createMemoryCommand())
+    .addCommand(createSkillsCommand())
     .addCommand(createAuthCommand());
 
   return program;
