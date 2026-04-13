@@ -1,0 +1,41 @@
+{
+  "defaultProvider": "openai-codex",
+  "providers": {
+    "openai-codex": {
+      "apiKeyEnv": "OPENAI_API_KEY",
+      "model": "gpt-5-codex",
+      "deviceCode": {
+        "flow": "openai-device",
+        "clientId": "app_EMoamEEZ73f0CkXaXp7hrann",
+        "deviceEndpoint": "https://auth.openai.com/api/accounts/deviceauth/usercode",
+        "pollEndpoint": "https://auth.openai.com/api/accounts/deviceauth/token",
+        "tokenEndpoint": "https://auth.openai.com/oauth/token",
+        "scope": "openid profile offline_access",
+        "verificationUri": "https://auth.openai.com/codex/device"
+      }
+    },
+    "github-copilot": {
+      "authMode": "device-flow",
+      "model": "gpt-5-codex",
+      "deviceCode": {
+        "flow": "oauth-device",
+        "clientId": "178c6fc778ccc68e1d6a",
+        "deviceEndpoint": "https://github.com/login/device/code",
+        "tokenEndpoint": "https://github.com/login/oauth/access_token",
+        "scope": "read:user"
+      }
+    }
+  },
+  "retry": {
+    "maxAttempts": 3,
+    "noProgressAbort": 2
+  },
+  "verification": {
+    "runBaselineBeforeEdit": true,
+    "defaultTimeoutSec": 900
+  },
+  "safety": {
+    "allowNetworkInGeneratedTools": false,
+    "requireToolApproval": false
+  }
+}
